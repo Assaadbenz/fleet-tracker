@@ -1,0 +1,169 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------------------------------
+// Enums
+// ----------------------------------------------------
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  DRIVER
+}
+
+enum VehicleStatus {
+  ACTIVE
+  MAINTENANCE
+  INACTIVE
+}
+
+enum WorkOrderStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+// ----------------------------------------------------
+// Models
+// ----------------------------------------------------
+
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Operational Tenant Isolation Relations
+  users                User[]
+  vehicles             Vehicle[]
+  maintenanceSchedules MaintenanceSchedule[]
+  workOrders           WorkOrder[]
+  mileageLogs          MileageLog[]
+
+  @@map("tenants")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         UserRole @default(DRIVER)
+  tenantId     String   @map("tenant_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  mileageLogs MileageLog[]
+
+  // Indexes & Multi-tenant constraints
+  @@index([tenantId])
+  @@index([tenantId, role])
+  @@map("users")
+}
+
+model Vehicle {
+  id             String        @id @default(uuid())
+  vin            String
+  plateNumber    String        @map("plate_number")
+  make           String
+  model          String
+  year           Int
+  currentMileage Int           @default(0) @map("current_mileage")
+  status         VehicleStatus @default(ACTIVE)
+  tenantId       String        @map("tenant_id")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  tenant               Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  maintenanceSchedules MaintenanceSchedule[]
+  workOrders           WorkOrder[]
+  mileageLogs          MileageLog[]
+
+  // Indexes & Multi-tenant uniqueness
+  @@unique([tenantId, vin])
+  @@unique([tenantId, plateNumber])
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@map("vehicles")
+}
+
+model MaintenanceSchedule {
+  id                 String    @id @default(uuid())
+  vehicleId          String    @map("vehicle_id")
+  tenantId           String    @map("tenant_id")
+  serviceName        String    @map("service_name")
+  intervalKm         Int?      @map("interval_km")
+  intervalMonths     Int?      @map("interval_months")
+  lastServiceMileage Int?      @map("last_service_mileage")
+  lastServiceDate    DateTime? @map("last_service_date")
+  nextDueMileage     Int?      @map("next_due_mileage")
+  nextDueDate        DateTime? @map("next_due_date")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Indexes
+  @@index([tenantId])
+  @@index([tenantId, vehicleId])
+  @@index([tenantId, nextDueDate])
+  @@index([tenantId, nextDueMileage])
+  @@map("maintenance_schedules")
+}
+
+model WorkOrder {
+  id          String          @id @default(uuid())
+  vehicleId   String          @map("vehicle_id")
+  tenantId    String          @map("tenant_id")
+  title       String
+  description String?         @db.Text
+  status      WorkOrderStatus @default(PENDING)
+  cost        Decimal         @default(0.00) @db.Decimal(10, 2)
+  performedAt DateTime?       @map("performed_at")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  // Relations
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Indexes
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, vehicleId])
+  @@index([tenantId, performedAt])
+  @@map("work_orders")
+}
+
+model MileageLog {
+  id                String   @id @default(uuid())
+  vehicleId         String   @map("vehicle_id")
+  recordedByUserId  String   @map("recorded_by_user_id")
+  tenantId          String   @map("tenant_id")
+  mileage           Int
+  recordedAt        DateTime @default(now()) @map("recorded_at")
+
+  // Relations
+  vehicle        Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  recordedByUser User    @relation(fields: [recordedByUserId], references: [id], onDelete: Restrict)
+  tenant         Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Indexes
+  @@index([tenantId])
+  @@index([tenantId, vehicleId, recordedAt])
+  @@index([tenantId, recordedByUserId])
+  @@map("mileage_logs")
+}
