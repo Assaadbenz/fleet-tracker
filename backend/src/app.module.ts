@@ -7,6 +7,7 @@ import { TenantModule } from './modules/tenant/tenant.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { MaintenanceModule } from './modules/maintenance/maintenance.module';
 import { VehicleModule } from './modules/vehicle/vehicle.module';
+import { HealthModule } from './modules/health/health.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { VehicleModule } from './modules/vehicle/vehicle.module';
       }),
     }),
     PrismaModule,
+    HealthModule,
     NotificationsModule,
     AuthModule,
     TenantModule,
