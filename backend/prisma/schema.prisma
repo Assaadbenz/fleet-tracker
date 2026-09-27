@@ -48,6 +48,7 @@ model Tenant {
   maintenanceSchedules MaintenanceSchedule[]
   workOrders           WorkOrder[]
   mileageLogs          MileageLog[]
+  fuelLogs             FuelLog[]
 
   @@map("tenants")
 }
@@ -64,6 +65,7 @@ model User {
   // Relations
   tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   mileageLogs MileageLog[]
+  fuelLogs    FuelLog[]
 
   // Indexes & Multi-tenant constraints
   @@index([tenantId])
@@ -89,6 +91,7 @@ model Vehicle {
   maintenanceSchedules MaintenanceSchedule[]
   workOrders           WorkOrder[]
   mileageLogs          MileageLog[]
+  fuelLogs             FuelLog[]
 
   // Indexes & Multi-tenant uniqueness
   @@unique([tenantId, vin])
@@ -167,3 +170,29 @@ model MileageLog {
   @@index([tenantId, recordedByUserId])
   @@map("mileage_logs")
 }
+
+model FuelLog {
+  id               String   @id @default(uuid())
+  vehicleId        String   @map("vehicle_id")
+  recordedByUserId String   @map("recorded_by_user_id")
+  tenantId         String   @map("tenant_id")
+  liters           Decimal  @db.Decimal(8, 2)
+  totalCost        Decimal  @db.Decimal(10, 2) @map("total_cost")
+  odometer         Int
+  fuelType         String   @default("DIESEL") @map("fuel_type")
+  fullTank         Boolean  @default(true) @map("full_tank")
+  stationName      String?  @map("station_name")
+  recordedAt       DateTime @default(now()) @map("recorded_at")
+
+  // Relations
+  vehicle        Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  recordedByUser User    @relation(fields: [recordedByUserId], references: [id], onDelete: Restrict)
+  tenant         Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // Indexes
+  @@index([tenantId])
+  @@index([tenantId, vehicleId, recordedAt])
+  @@index([tenantId, recordedByUserId])
+  @@map("fuel_logs")
+}
+

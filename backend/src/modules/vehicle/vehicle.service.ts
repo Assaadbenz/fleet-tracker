@@ -127,4 +127,26 @@ export class VehicleService {
 
     return { success: true, message: `Vehicle ${vehicleId} deleted successfully` };
   }
+
+  async exportVehiclesCsv(tenantId: string): Promise<string> {
+    const vehicles = await this.prisma.vehicle.findMany({
+      where: { tenantId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const headers = ['ID', 'VIN', 'Immatriculation', 'Marque', 'Modele', 'Annee', 'Kilometrage', 'Statut', 'DateCreation'];
+    const rows = vehicles.map((v) => [
+      v.id,
+      `"${v.vin}"`,
+      `"${v.plateNumber}"`,
+      `"${v.make}"`,
+      `"${v.model}"`,
+      v.year,
+      v.currentMileage,
+      v.status,
+      v.createdAt.toISOString(),
+    ]);
+
+    return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+  }
 }

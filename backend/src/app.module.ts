@@ -8,6 +8,8 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { MaintenanceModule } from './modules/maintenance/maintenance.module';
 import { VehicleModule } from './modules/vehicle/vehicle.module';
 import { HealthModule } from './modules/health/health.module';
+import { FuelModule } from './modules/fuel/fuel.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
 
 @Module({
   imports: [
@@ -34,6 +36,8 @@ import { HealthModule } from './modules/health/health.module';
     TenantModule,
     VehicleModule,
     MaintenanceModule,
+    FuelModule,
+    AnalyticsModule,
   ],
 })
 export class AppModule {}

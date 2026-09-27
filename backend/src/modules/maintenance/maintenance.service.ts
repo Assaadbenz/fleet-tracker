@@ -428,4 +428,30 @@ export class MaintenanceService {
       return updatedOrder;
     });
   }
+
+  async exportWorkOrdersCsv(tenantId: string): Promise<string> {
+    const orders = await this.prisma.workOrder.findMany({
+      where: { tenantId },
+      include: {
+        vehicle: {
+          select: { plateNumber: true, make: true, model: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const headers = ['ID', 'Vehicule', 'Titre', 'Description', 'Statut', 'Cout_MAD', 'DateIntervention', 'DateCreation'];
+    const rows = orders.map((o) => [
+      o.id,
+      `"${o.vehicle?.plateNumber} (${o.vehicle?.make} ${o.vehicle?.model})"`,
+      `"${o.title.replace(/"/g, '""')}"`,
+      `"${(o.description || '').replace(/"/g, '""')}"`,
+      o.status,
+      Number(o.cost),
+      o.performedAt ? o.performedAt.toISOString() : '',
+      o.createdAt.toISOString(),
+    ]);
+
+    return [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+  }
 }

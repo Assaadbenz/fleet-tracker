@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   HttpCode,
   HttpStatus,
   Param,
@@ -79,6 +80,14 @@ export class MaintenanceController {
     @Query('status') status?: WorkOrderStatus,
   ) {
     return this.maintenanceService.getWorkOrders(tenantId, status);
+  }
+
+  @Get('work-orders/export/csv')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  @Header('Content-Type', 'text/csv')
+  @Header('Content-Disposition', 'attachment; filename="work-orders.csv"')
+  async exportWorkOrdersCsv(@CurrentTenant() tenantId: string) {
+    return this.maintenanceService.exportWorkOrdersCsv(tenantId);
   }
 
   @Patch('work-orders/:id')

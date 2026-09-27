@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   HttpCode,
   HttpStatus,
   Param,
@@ -42,6 +43,14 @@ export class VehicleController {
     @Query('status') status?: VehicleStatus,
   ) {
     return this.vehicleService.listVehicles(tenantId, status);
+  }
+
+  @Get('export/csv')
+  @Roles(UserRole.ADMIN, UserRole.MANAGER)
+  @Header('Content-Type', 'text/csv')
+  @Header('Content-Disposition', 'attachment; filename="fleet-vehicles.csv"')
+  async exportCsv(@CurrentTenant() tenantId: string) {
+    return this.vehicleService.exportVehiclesCsv(tenantId);
   }
 
   @Get(':id')
