@@ -20,8 +20,9 @@ import {
   Download,
   MoreVertical,
   Activity,
+  Fuel,
 } from 'lucide-react';
-import { VehicleWithComputed, ComputedStatus, MaintenanceSchedule } from '@/types/fleet';
+import { VehicleWithComputed, ComputedStatus, MaintenanceSchedule, FuelLog } from '@/types/fleet';
 import { StatusBadge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { formatNumber, formatDate } from '@/lib/utils';
@@ -30,6 +31,7 @@ import { AddTruckModal } from './add-truck-modal';
 import { EditVehicleModal } from './edit-vehicle-modal';
 import { ScheduleServiceModal } from './schedule-service-modal';
 import { VehicleDetailsModal } from './vehicle-details-modal';
+import { LogFuelModal } from '../fuel/log-fuel-modal';
 import { submitMileageAction } from '@/app/actions/mileage-actions';
 import { createVehicleAction } from '@/app/actions/vehicle-actions';
 
@@ -47,6 +49,7 @@ export function VehicleTableClient({ initialVehicles }: VehicleTableClientProps)
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
   const [isScheduleModalOpen, setIsScheduleModalOpen] = React.useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = React.useState(false);
+  const [isFuelModalOpen, setIsFuelModalOpen] = React.useState(false);
 
   // Filters & Search
   const [searchQuery, setSearchQuery] = React.useState('');
@@ -377,6 +380,20 @@ export function VehicleTableClient({ initialVehicles }: VehicleTableClientProps)
           <Button
             variant="outline"
             size="sm"
+            onClick={() => {
+              setSelectedVehicle(null);
+              setIsFuelModalOpen(true);
+            }}
+            className="text-xs gap-1.5 border-amber-600/40 text-amber-400 hover:bg-amber-950/30 hover:text-amber-300"
+            title="Enregistrer un ravitaillement en carburant"
+          >
+            <Fuel className="h-3.5 w-3.5 text-amber-400" />
+            Plein Carburant
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
             onClick={handleExportCSV}
             className="text-xs gap-1.5 text-zinc-300 hover:text-white"
             title="Exporter le registre au format CSV"
@@ -695,6 +712,23 @@ export function VehicleTableClient({ initialVehicles }: VehicleTableClientProps)
         onClose={() => setIsDetailsModalOpen(false)}
         onOpenMileageModal={handleOpenMileage}
         onOpenScheduleModal={handleOpenSchedule}
+      />
+
+      {/* Modal 6 : Ravitaillement Carburant */}
+      <LogFuelModal
+        isOpen={isFuelModalOpen}
+        onClose={() => setIsFuelModalOpen(false)}
+        vehicles={vehicles}
+        selectedVehicle={selectedVehicle}
+        onFuelLogged={(fuelLog) => {
+          setToastMessage({
+            text: `Ravitaillement de ${fuelLog.liters}L enregistré avec succès pour ${formatNumber(fuelLog.totalCost)} MAD.`,
+            type: 'success',
+          });
+          if (fuelLog.odometer) {
+            handleSubmitMileage(fuelLog.vehicleId, fuelLog.odometer);
+          }
+        }}
       />
     </div>
   );

@@ -13,6 +13,7 @@ import {
   Truck,
   Calendar,
   X,
+  Download,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -223,14 +224,48 @@ export function WorkOrdersView() {
           </div>
         </div>
 
-        <Button
-          variant="primary"
-          onClick={() => setIsCreateModalOpen(true)}
-          className="gap-2 w-full sm:w-auto"
-        >
-          <PlusCircle className="h-4 w-4" />
-          Nouveau Bon d&apos;Intervention
-        </Button>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const rows = [
+                ['ID', 'Immatriculation', 'Véhicule', 'Titre', 'Description', 'Statut', 'Coût (MAD)', 'Date'],
+                ...filteredOrders.map((o) => [
+                  o.id,
+                  o.vehiclePlate,
+                  o.vehicleName,
+                  `"${o.title.replace(/"/g, '""')}"`,
+                  `"${o.description.replace(/"/g, '""')}"`,
+                  o.status,
+                  o.cost.toString(),
+                  o.scheduledDate,
+                ]),
+              ];
+              const csvContent = 'data:text/csv;charset=utf-8,' + rows.map((e) => e.join(';')).join('\n');
+              const encodedUri = encodeURI(csvContent);
+              const link = document.createElement('a');
+              link.setAttribute('href', encodedUri);
+              link.setAttribute('download', `bons_intervention_${new Date().toISOString().split('T')[0]}.csv`);
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            }}
+            className="text-xs gap-1.5 border-zinc-700 text-zinc-300 hover:text-white"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Exporter CSV
+          </Button>
+
+          <Button
+            variant="primary"
+            onClick={() => setIsCreateModalOpen(true)}
+            className="gap-2"
+          >
+            <PlusCircle className="h-4 w-4" />
+            Nouveau Bon d&apos;Intervention
+          </Button>
+        </div>
       </div>
 
       {/* Work Orders List */}

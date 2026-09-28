@@ -49,3 +49,17 @@ export interface VehicleWithComputed extends Vehicle {
     isDue: boolean;
   };
 }
+
+export interface FuelLog {
+  id: string;
+  vehicleId: string;
+  recordedByUserId?: string;
+  liters: number;
+  totalCost: number;
+  odometer: number;
+  fuelType: string;
+  fullTank: boolean;
+  stationName?: string | null;
+  recordedAt: string;
+}
+
