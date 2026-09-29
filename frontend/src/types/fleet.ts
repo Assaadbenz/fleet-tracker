@@ -63,3 +63,20 @@ export interface FuelLog {
   recordedAt: string;
 }
 
+export interface DriverInspection {
+  id: string;
+  driverId: string;
+  driverName: string;
+  vehiclePlate: string;
+  odometer: number;
+  brakesPass: boolean;
+  tiresPass: boolean;
+  lightsPass: boolean;
+  fluidsPass: boolean;
+  safetyKitPass: boolean;
+  overallStatus: 'CONFORME' | 'NON_CONFORME' | 'ATTENTION';
+  notes?: string;
+  inspectedAt: string;
+}
+
+

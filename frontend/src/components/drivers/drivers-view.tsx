@@ -12,10 +12,16 @@ import {
   Calendar,
   X,
   CheckCircle2,
+  AlertTriangle,
+  ClipboardCheck,
+  Download,
+  RotateCcw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { InspectionModal } from '../inspections/inspection-modal';
+import { DriverInspection } from '@/types/fleet';
 
 export interface DriverMember {
   id: string;
@@ -27,6 +33,8 @@ export interface DriverMember {
   assignedTruckPlate: string;
   status: 'ACTIVE' | 'ON_DUTY' | 'RESTING';
   tripsCompleted: number;
+  lastInspectionStatus?: 'CONFORME' | 'NON_CONFORME' | 'ATTENTION';
+  lastInspectionDate?: string;
 }
 
 const initialDrivers: DriverMember[] = [
@@ -36,10 +44,12 @@ const initialDrivers: DriverMember[] = [
     email: 'admin@apexlogistics.com',
     phone: '+212 661-123456',
     role: 'ADMIN',
-    licenseType: 'EC (Poids Lourd + Remorque)',
+    licenseType: 'EC (Poids Lourd + Semi-remorque)',
     assignedTruckPlate: '10482-A-20',
     status: 'ACTIVE',
     tripsCompleted: 142,
+    lastInspectionStatus: 'CONFORME',
+    lastInspectionDate: 'Aujourd’hui 08:30',
   },
   {
     id: 'usr-2',
@@ -51,6 +61,8 @@ const initialDrivers: DriverMember[] = [
     assignedTruckPlate: '99999-A-20',
     status: 'ON_DUTY',
     tripsCompleted: 98,
+    lastInspectionStatus: 'CONFORME',
+    lastInspectionDate: 'Aujourd’hui 06:15',
   },
   {
     id: 'usr-3',
@@ -62,6 +74,8 @@ const initialDrivers: DriverMember[] = [
     assignedTruckPlate: '34910-D-20',
     status: 'ACTIVE',
     tripsCompleted: 64,
+    lastInspectionStatus: 'ATTENTION',
+    lastInspectionDate: 'Hier 17:45',
   },
   {
     id: 'usr-4',
@@ -73,13 +87,19 @@ const initialDrivers: DriverMember[] = [
     assignedTruckPlate: '58291-B-20',
     status: 'RESTING',
     tripsCompleted: 185,
+    lastInspectionStatus: 'CONFORME',
+    lastInspectionDate: 'Il y a 2 jours',
   },
 ];
 
 export function DriversView() {
   const [drivers, setDrivers] = React.useState<DriverMember[]>(initialDrivers);
   const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [isInspectionModalOpen, setIsInspectionModalOpen] = React.useState(false);
+  const [inspectionTargetDriver, setInspectionTargetDriver] = React.useState<DriverMember | null>(null);
+  const [toastMessage, setToastMessage] = React.useState<string | null>(null);
 
+  // New Driver Form State
   const [newName, setNewName] = React.useState('');
   const [newEmail, setNewEmail] = React.useState('');
   const [newPhone, setNewPhone] = React.useState('');
@@ -100,6 +120,8 @@ export function DriversView() {
       assignedTruckPlate: newPlate ? newPlate.toUpperCase() : 'Non assigné',
       status: 'ACTIVE',
       tripsCompleted: 0,
+      lastInspectionStatus: 'CONFORME',
+      lastInspectionDate: 'Nouvellement affecté',
     };
 
     setDrivers([newMember, ...drivers]);
@@ -108,29 +130,123 @@ export function DriversView() {
     setNewPhone('');
     setNewPlate('');
     setIsModalOpen(false);
+    setToastMessage(`Chauffeur ${newMember.name} ajouté avec succès.`);
+  };
+
+  const toggleDriverStatus = (driverId: string) => {
+    setDrivers((prev) =>
+      prev.map((d) => {
+        if (d.id !== driverId) return d;
+        const nextStatus: DriverMember['status'] =
+          d.status === 'ACTIVE' ? 'ON_DUTY' : d.status === 'ON_DUTY' ? 'RESTING' : 'ACTIVE';
+        return { ...d, status: nextStatus };
+      }),
+    );
+  };
+
+  const handleInspectionCompleted = (inspection: DriverInspection) => {
+    setDrivers((prev) =>
+      prev.map((d) => {
+        if (inspectionTargetDriver && d.id === inspectionTargetDriver.id) {
+          return {
+            ...d,
+            lastInspectionStatus: inspection.overallStatus,
+            lastInspectionDate: 'À l’instant',
+          };
+        }
+        return d;
+      }),
+    );
+    setToastMessage(
+      `Inspection enregistrée pour ${inspection.vehiclePlate} : Résultat ${inspection.overallStatus}.`,
+    );
+  };
+
+  const handleExportDriversCsv = () => {
+    const rows = [
+      ['Nom', 'Email', 'Telephone', 'Role', 'Permis', 'CamionAssigne', 'Statut', 'Trajets', 'DerniereInspection'],
+      ...drivers.map((d) => [
+        `"${d.name}"`,
+        d.email,
+        d.phone,
+        d.role,
+        `"${d.licenseType}"`,
+        d.assignedTruckPlate,
+        d.status,
+        d.tripsCompleted.toString(),
+        d.lastInspectionStatus || 'N/A',
+      ]),
+    ];
+    const csvContent = 'data:text/csv;charset=utf-8,' + rows.map((e) => e.join(';')).join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `equipe_chauffeurs_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
     <div className="space-y-6 animate-in fade-in">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="p-3.5 rounded-xl bg-emerald-950/60 border border-emerald-500/30 text-emerald-300 text-xs flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+            <span>{toastMessage}</span>
+          </div>
+          <button onClick={() => setToastMessage(null)} className="underline text-emerald-400 hover:text-emerald-200">
+            Fermer
+          </button>
+        </div>
+      )}
+
       {/* Top Controls */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
         <div>
-          <h2 className="text-base font-semibold text-zinc-100">
-            Chauffeurs & Membres de l&apos;Équipe
+          <h2 className="text-base font-semibold text-zinc-100 flex items-center gap-2">
+            <Users className="h-5 w-5 text-indigo-400" />
+            Chauffeurs & Équipe Opérationnelle
           </h2>
           <p className="text-xs text-zinc-400">
-            Organisation locataire : <span className="text-indigo-400">Apex Global Logistics</span> (4 membres enregistrés)
+            Gestion des conducteurs, vérifications de conformité et fiches de départ
           </p>
         </div>
 
-        <Button
-          variant="primary"
-          onClick={() => setIsModalOpen(true)}
-          className="gap-2 w-full sm:w-auto"
-        >
-          <PlusCircle className="h-4 w-4" />
-          Ajouter un Chauffeur
-        </Button>
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportDriversCsv}
+            className="text-xs gap-1.5 border-zinc-700 text-zinc-300 hover:text-white"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Exporter CSV
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setInspectionTargetDriver(drivers[0]);
+              setIsInspectionModalOpen(true);
+            }}
+            className="text-xs gap-1.5 border-indigo-500/40 text-indigo-300 hover:bg-indigo-950/30"
+          >
+            <ClipboardCheck className="h-3.5 w-3.5 text-indigo-400" />
+            Fiche Inspection Départ
+          </Button>
+
+          <Button
+            variant="primary"
+            onClick={() => setIsModalOpen(true)}
+            className="gap-2 text-xs"
+          >
+            <PlusCircle className="h-4 w-4" />
+            Ajouter un Chauffeur
+          </Button>
+        </div>
       </div>
 
       {/* Drivers Cards Grid */}
@@ -138,7 +254,7 @@ export function DriversView() {
         {drivers.map((driver) => (
           <div
             key={driver.id}
-            className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-5 space-y-3.5 hover:border-zinc-700 transition-all"
+            className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-5 space-y-4 hover:border-zinc-700 transition-all shadow-lg"
           >
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
@@ -157,24 +273,37 @@ export function DriversView() {
                 </div>
               </div>
 
-              <div className="flex flex-col items-end gap-1">
+              <div className="flex flex-col items-end gap-1.5">
                 <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-zinc-800 text-zinc-300 border border-zinc-700">
                   {driver.role}
                 </span>
-                {driver.status === 'ON_DUTY' ? (
-                  <span className="text-[11px] text-amber-400 font-medium flex items-center gap-1">
-                    <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-ping" />
-                    En Trajet
-                  </span>
-                ) : (
-                  <span className="text-[11px] text-emerald-400 font-medium flex items-center gap-1">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                    Disponible
-                  </span>
-                )}
+
+                <button
+                  onClick={() => toggleDriverStatus(driver.id)}
+                  title="Cliquer pour changer le statut"
+                  className="cursor-pointer group flex items-center gap-1 transition-opacity hover:opacity-80"
+                >
+                  {driver.status === 'ON_DUTY' ? (
+                    <span className="text-[11px] text-amber-400 font-medium flex items-center gap-1 bg-amber-950/40 px-2 py-0.5 rounded-full border border-amber-500/20">
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-ping" />
+                      En Trajet
+                    </span>
+                  ) : driver.status === 'RESTING' ? (
+                    <span className="text-[11px] text-zinc-400 font-medium flex items-center gap-1 bg-zinc-800/80 px-2 py-0.5 rounded-full border border-zinc-700">
+                      <span className="h-1.5 w-1.5 rounded-full bg-zinc-400" />
+                      En Repos
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-emerald-400 font-medium flex items-center gap-1 bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                      Disponible
+                    </span>
+                  )}
+                </button>
               </div>
             </div>
 
+            {/* Assignments & Licenses */}
             <div className="grid grid-cols-2 gap-2 text-xs bg-zinc-950/40 p-3 rounded-lg border border-zinc-800/80">
               <div>
                 <span className="text-zinc-500 text-[11px]">Véhicule Assigné</span>
@@ -191,6 +320,37 @@ export function DriversView() {
               </div>
             </div>
 
+            {/* Inspection Status Badge */}
+            <div className="flex items-center justify-between p-2.5 rounded-lg bg-zinc-900/40 border border-zinc-800/60 text-xs">
+              <div className="flex items-center gap-2">
+                <ClipboardCheck className="h-3.5 w-3.5 text-zinc-400" />
+                <span className="text-zinc-400">Contrôle départ :</span>
+                <span
+                  className={`font-semibold ${
+                    driver.lastInspectionStatus === 'CONFORME'
+                      ? 'text-emerald-400'
+                      : driver.lastInspectionStatus === 'ATTENTION'
+                      ? 'text-amber-400'
+                      : 'text-rose-400'
+                  }`}
+                >
+                  {driver.lastInspectionStatus || 'À faire'}
+                </span>
+                <span className="text-zinc-500 text-[10px]">({driver.lastInspectionDate})</span>
+              </div>
+
+              <button
+                onClick={() => {
+                  setInspectionTargetDriver(driver);
+                  setIsInspectionModalOpen(true);
+                }}
+                className="text-[11px] text-indigo-400 hover:text-indigo-300 underline font-medium"
+              >
+                Inspecter
+              </button>
+            </div>
+
+            {/* Footer */}
             <div className="flex items-center justify-between text-xs text-zinc-400 pt-1 border-t border-zinc-800/60">
               <span className="flex items-center gap-1">
                 <Phone className="h-3 w-3 text-zinc-500" />
@@ -284,6 +444,15 @@ export function DriversView() {
           </div>
         </div>
       )}
+
+      {/* Modal Fiche d'Inspection Départ */}
+      <InspectionModal
+        isOpen={isInspectionModalOpen}
+        onClose={() => setIsInspectionModalOpen(false)}
+        driverName={inspectionTargetDriver?.name}
+        defaultPlate={inspectionTargetDriver?.assignedTruckPlate}
+        onInspectionCompleted={handleInspectionCompleted}
+      />
     </div>
   );
 }
