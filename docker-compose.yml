@@ -50,6 +50,48 @@ services:
     networks:
       - fleet_network
 
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fleet_backend
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      PORT: 4000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-fleet_admin}:${POSTGRES_PASSWORD:-fleet_secret_password}@postgres:5432/${POSTGRES_DB:-fleet_db}?schema=public
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-fleet_redis_secret}
+      JWT_SECRET: ${JWT_SECRET:-super_secret_fleet_jwt_key_2026}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - fleet_network
+    profiles:
+      - full
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: fleet_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://backend:4000/api/v1
+    depends_on:
+      - backend
+    networks:
+      - fleet_network
+    profiles:
+      - full
+
 volumes:
   postgres_data:
     driver: local
